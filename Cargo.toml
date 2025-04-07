@@ -1,0 +1,3 @@
+[workspace]
+members = ["lib_users", "lib_boworring", "inventory", "library_app"]
+
