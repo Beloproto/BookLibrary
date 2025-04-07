@@ -1,5 +1,5 @@
 use inventory::{Book, Inventory};
-use lib_users::{User, UserManger};
+use lib_users::{User, UserManager};
 
 pub struct BorrowingService;
 
@@ -11,7 +11,7 @@ impl BorrowingService {
     pub fn borrow_book(
         &self,
         inventory: &mut Inventory,
-        user_manager: &mut UserManger,
+        user_manager: &mut UserManager,
         user_id: u32,
         book_id: u32,
     ) -> Result<(), String> {
@@ -49,16 +49,20 @@ impl BorrowingService {
     pub fn return_book(
         &self,
         inventory: &mut Inventory,
-        user_manager: &mut UserManger,
+        user_manager: &mut UserManager,
         user_id: u32,
         book_id: u32,
     ) -> Result<(), String> {
-        // First try to return the book in the user manager 
+        // Try to return the book in the user manager and check if it was successful
+        user_manager.return_book(user_id, book_id)?;
 
         user_manager.return_book(user_id, book_id);
 
-        // If successful, update the book's availablity in the inventory
+        // If successful in user manager, update the book's availability in the inventory
         inventory.update_book_availability(book_id, true)?;
+
+        Ok(())
+    }
 
         Ok(())
     }
@@ -69,12 +73,12 @@ impl BorrowingService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lib_users::User;
+    use lib_users::{User, UserManager};
     use inventory::{Genre, Book};
 
-    fn setup() -> (Inventory, UserManger, BorrowingService) {
+    fn setup() -> (Inventory, UserManager, BorrowingService) {
         let mut inventory = Inventory::new();
-        let mut user_manager = UserManger::new();
+        let mut user_manager = UserManager::new();
         let borrowing_service = BorrowingService::new();
 
         // Add a book 
@@ -125,12 +129,19 @@ mod tests {
     fn test_borrow_unavailable_book () {
         let (mut inventory, mut user_manager, borrowing_service) = setup();
 
-        // Borrow the book 
-
         assert!(borrowing_service.borrow_book(&mut inventory, &mut user_manager, 1, 1).is_ok());
-
-        // Try to borrow again 
         assert!(borrowing_service.borrow_book(&mut inventory, &mut user_manager, 1, 1).is_err());
     }
+    #[test]
+    fn test_return_book_not_borrowed_by_user() {
+        let (mut inventory, mut user_manager, borrowing_service) = setup();
 
+        // User 1 has not borrowed book 1
+        let result = borrowing_service.return_book(&mut inventory, &mut user_manager, 1, 1);
+
+        // Assuming user_manager.return_book returns an Err if the user hasn't borrowed the book
+        assert!(result.is_err());
+        // The book should still be available in the inventory as the return wasn't successful in user_manager
+        assert!(inventory.get_book(1).unwrap().is_available);
+    }
 }
